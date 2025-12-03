@@ -66,36 +66,22 @@ async def generate_overview(s: Stats) -> None:
         changed_val = "N/A"
 
     try:
-        views_val = f"{await s.views:,}"
-    except Exception:
-        views_val = "0"
-
-    try:
-        repos_val = f"{len(await s.repos):,}"
-    except Exception:
-        repos_val = "0"
-
-    # New stats with fallbacks
-    try:
-        pull_requests_val = f"{await s.total_pull_requests:,}"
-    except Exception:
-        pull_requests_val = "0"
-
-    try:
         issues_val = f"{await s.total_issues_created:,}"
     except Exception:
         issues_val = "0"
+
+    try:
+        code_reviews_val = f"{await s.total_code_reviews:,}"
+    except Exception:
+        code_reviews_val = "0"
 
     output = re.sub("{{ name }}", name_val, output)
     output = re.sub("{{ stars }}", stars_val, output)
     output = re.sub("{{ forks }}", forks_val, output)
     output = re.sub("{{ contributions }}", contributions_val, output)
-    # output = re.sub("{{ lines_changed }}", f"{changed:,}", output)
-    output = re.sub("{{ views }}", views_val, output)
-    output = re.sub("{{ repos }}", repos_val, output)
-    # New stats
-    output = re.sub("{{ pull_requests }}", pull_requests_val, output)
+    output = re.sub("{{ lines_changed }}", changed_val, output)
     output = re.sub("{{ issues }}", issues_val, output)
+    output = re.sub("{{ code_reviews }}", code_reviews_val, output)
 
     generate_output_folder()
     with open("generated/overview.svg", "w") as f:
