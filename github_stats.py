@@ -613,23 +613,39 @@ class Stats(object):
 
         if self._lines_changed is not None:
             return self._lines_changed
+
+        async def get_repo_lines(repo: str) -> Tuple[int, int]:
+            r = await self.queries.query_rest(f"/repos/{repo}/stats/contributors")
+            repo_additions = 0
+            repo_deletions = 0
+            
+            # If the response is a list, process contributors. If it's a dict, it's likely an error.
+            if isinstance(r, list):
+                for author_obj in r:
+                    if not isinstance(author_obj, dict) or not isinstance(
+                        author_obj.get("author", {}), dict
+                    ):
+                        continue
+                    author = author_obj.get("author", {}).get("login", "")
+                    if author.lower() != self.username.lower():
+                        continue
+
+                    for week in author_obj.get("weeks", []):
+                        repo_additions += week.get("a", 0)
+                        repo_deletions += week.get("d", 0)
+            
+            return repo_additions, repo_deletions
+
         additions = 0
         deletions = 0
-        for repo in await self.repos:
-            r = await self.queries.query_rest(f"/repos/{repo}/stats/contributors")
-            for author_obj in r:
-                # Handle malformed response from the API by skipping this repo
-                if not isinstance(author_obj, dict) or not isinstance(
-                    author_obj.get("author", {}), dict
-                ):
-                    continue
-                author = author_obj.get("author", {}).get("login", "")
-                if author != self.username:
-                    continue
-
-                for week in author_obj.get("weeks", []):
-                    additions += week.get("a", 0)
-                    deletions += week.get("d", 0)
+        
+        repos = await self.repos
+        tasks = [get_repo_lines(repo) for repo in repos]
+        results = await asyncio.gather(*tasks)
+        
+        for repo_additions, repo_deletions in results:
+            additions += repo_additions
+            deletions += repo_deletions
 
         self._lines_changed = (additions, deletions)
         return self._lines_changed
@@ -647,11 +663,22 @@ class Stats(object):
         if self._views is not None:
             return self._views
 
-        total = 0
-        for repo in await self.repos:
+        async def get_repo_views(repo: str) -> int:
             r = await self.queries.query_rest(f"/repos/{repo}/traffic/views")
-            for view in r.get("views", []):
-                total += view.get("count", 0)
+            repo_total = 0
+            if isinstance(r, dict):
+                for view in r.get("views", []):
+                    if isinstance(view, dict):
+                        repo_total += view.get("count", 0)
+            return repo_total
+
+        total = 0
+        repos = await self.repos
+        tasks = [get_repo_views(repo) for repo in repos]
+        results = await asyncio.gather(*tasks)
+        
+        for repo_total in results:
+            total += repo_total
 
         self._views = total
         return total
