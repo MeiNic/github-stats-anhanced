@@ -15,33 +15,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v6
+    - name: Checkout history branch
+      run: |
+        git config --global user.name "pushpakumarbalan/github-stats"
+        git config --global user.email "github-stats[bot]@meinic.github.io"
+        git pull
+        git checkout generated || git checkout -b generated
+        git merge master || true
+
+    - uses: mlugg/setup-zig@v1
       with:
-        python-version: '3.12'
-        cache: 'pip'
+        version: 0.13.0
 
-    - name: Install requirements
-      run: pip install -r requirements.txt
+    - name: Build
+      run: zig build -Doptimize=ReleaseFast
 
     - name: Generate images
-      run: python generate_images.py
+      run: |
+        mkdir -p generated
+        ./zig-out/bin/github-stats \
+          --overview-template templates/overview.svg \
+          --languages-template templates/languages.svg \
+          --overview-output-file generated/overview.svg \
+          --languages-output-file generated/languages.svg
       env:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
-        EXCLUDED: ${{ secrets.EXCLUDED }}
-        EXCLUDED_LANGS: ${{ secrets.EXCLUDED_LANGS }}
-        EXCLUDE_FORKED_REPOS: true
-        EXCLUDE_CONTRIBS: 'true'
-        MAX_202_RETRIES: '10'
+        EXCLUDE_REPOS: ${{ secrets.EXCLUDED }}
+        EXCLUDE_LANGS: ${{ secrets.EXCLUDED_LANGS }}
+        EXCLUDE_PRIVATE: "false"
+        DEBUG: "false"
+        MAX_RETRIES: 5
 
     - name: Commit to the repo
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "Update generated files"
-        commit_user_name: "github-stats[bot]"
-        commit_user_email: "github-stats[bot]@users.noreply.github.com"
+      run: |
+        git add .
+        # Force the build to succeed, even if no files were changed
+        git commit -m 'Update generated files' || true
+        git push --set-upstream origin generated
 
