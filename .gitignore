@@ -134,3 +134,8 @@ dmypy.json
 
 # PyCharm project files
 .idea
+
+# Zig and Output Directories
+.zig-cache/
+zig-out/
+generated/
