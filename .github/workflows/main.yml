@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Checkout history branch
       run: |
@@ -25,7 +25,7 @@ jobs:
         git checkout generated || git checkout -b generated
         git merge master || true
 
-    - uses: mlugg/setup-zig@v1
+    - uses: mlugg/setup-zig@v2
       with:
         version: master
 
